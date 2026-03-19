@@ -28,7 +28,7 @@ def init_db():
             password_hash TEXT NOT NULL,
             goal TEXT,
             target_calories INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -45,7 +45,7 @@ def init_db():
             meal_context TEXT,
             warning TEXT,
             smart_swap TEXT,
-            logged_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
@@ -66,7 +66,7 @@ def create_user(username, password_hash, goal, target_calories):
         )
         conn.commit()
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         conn.rollback()
         return False
     finally:
@@ -143,7 +143,7 @@ def get_evening_snack_pattern(user_id):
     cur = conn.cursor()
     cur.execute("""
         SELECT COUNT(*) FROM meals
-        WHERE user_id = ?
+        WHERE user_id = %s
           AND meal_context IN ('Evening Snack', 'Late Night Snack')
           AND health_score < 50
           AND logged_at >= NOW() - INTERVAL '7 days'
