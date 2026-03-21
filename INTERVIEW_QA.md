@@ -111,3 +111,75 @@ A: Streamlit subdomain free. **Custom**: Cloudflare → app.streamlit.io.
 - Wearable integration (calories from Fitbit).
 
 **Perfect interview prep: Code walkthrough + whiteboard architecture!** 🎯
+
+## 📁 **Per-File Deep Dives + Interview Q&A**
+
+### 1. `app.py` - Main Controller (~250 lines)
+**Detailed Explanation**:
+- **Lines 1-10**: Imports (Streamlit, PIL, all modules).
+- **12-25**: Page config + dark CSS injection (scoped selectors like `[data-testid="stAppViewContainer"]`).
+- **27**: `init_db()` ensures schema.
+- **30-35**: Auth gate - if no `session_state.user`, show login → `st.stop()`.
+- **Sidebar (38-50)**: Dynamic user info from session + page selector.
+- **Log Meal Page**: File uploader → `analyze_meal(image)` → display metrics (st.columns/st.metric) → `log_meal()` → success.
+- **State Mutations**: `st.session_state.user` updates trigger `st.rerun()`.
+
+**Key Pattern**: Conditional page rendering based on sidebar radio.
+
+**Q23: Why `st.rerun()` after auth/profile update?**  
+A: Forces full page refresh to reflect session changes (Streamlit reactivity limitation).
+
+**Q24: How handle concurrent uploads/sessions?**  
+A: Streamlit locks per-session; production → async queues (Celery).
+
+**Q25: Custom CSS limitations?**  
+A: Scoped only (no global styles). Alt: `components.html()` or React.
+
+### 2. `ai_engine.py` - Gemini AI Core (~50 lines)
+**Detailed Explanation**:
+- **Global model**: `GenerativeModel('gemini-2.5-flash')` with safety (BLOCK_MEDIUM_AND_ABOVE).
+- **Prompt**: 20-line template with JSON schema + dynamic `{goal}`/ `{context}` injection.
+- **Generate**: `[prompt, image]` multimodal → text strip ```json → `json.loads()`.
+- **Fallback**: Comprehensive except covering JSONDecodeError/IndexError.
+
+**Key Pattern**: JSON-forcing to avoid LLM hallucinations in structure.
+
+**Q26: Why not function calling/tools?**  
+A: Gemini structured outputs unstable; JSON prompt more reliable for vision.
+
+**Q27: Token usage optimization?**  
+A: Short prompt, image auto-compressed. Monitor via `response.usage_metadata`.
+
+**Q28: Multi-model fallback?**  
+A: Configurable; Claude/GPT as backup if Gemini rate-limited.
+
+### 3. `database.py` - Postgres Layer
+**Detailed Explanation**:
+- **Global conn**: `psycopg2.connect(DSN)` (hardcoded → env refactor).
+- **init_db()**: `CREATE TABLE IF NOT EXISTS` for users (id SERIAL PK, username UNIQUE) + meals (user_id FK, JSON nutrition?).
+- **CRUD**: Param lists `%s`, `executemany()` batches possible.
+- No transactions explicit → add for profile+log atomicity.
+
+**Q29: Connection pooling?**  
+A: psycopg2.ConnectionPool. Streamlit → `@st.cache_resource`.
+
+**Q30: Migration strategy?**  
+A: Alembic/Flyway. Current: Manual SQL in init_db.
+
+### 4. `auth.py`, `logic.py`, `dashboard.py` - Helpers
+**auth.py**: bcrypt wrapper + form handlers → DB ops.
+**logic.py**: Timezone-aware context (`datetime.now()`) + if-else warnings.
+**dashboard.py**: `pd.read_sql()` → `plotly.express` (bar/line for trends).
+
+**Q31: Why separate logic.py? SRP?**  
+A: Yes, app.py not bloated. Testable pure functions.
+
+**Q32: Dashboard perf for 10k logs?**  
+A: Paginate, DB aggregates (`GROUP BY date`), Vega-Lite.
+
+## 🎓 **Interview Mastery Tips**
+- Demo live: `streamlit run app.py` + upload meal.
+- Whiteboard: Draw data flow + bottlenecks.
+- Tradeoffs: Every choice explained (speed vs scale).
+
+**Now 30+ Qs – FAANG-ready!** 🚀
