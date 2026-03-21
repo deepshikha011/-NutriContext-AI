@@ -12,7 +12,8 @@ def get_connection():
         dbname=db["name"],
         user=db["user"],
         password=db["password"],
-        sslmode="require"
+        sslmode="require",
+        connect_timeout=10
     )
     return conn
 
